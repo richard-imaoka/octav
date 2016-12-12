@@ -432,6 +432,8 @@ func doConferenceUpdate(args cmdargs) int {
 	fs.StringVar(&title, "title", "", "")
 	var user_id string
 	fs.StringVar(&user_id, "user_id", "", "")
+	var video_url string
+	fs.StringVar(&video_url, "video_url", "", "")
 	prepGlobalFlags(fs)
 	if err := fs.Parse([]string(args)); err != nil {
 		return errOut(err)
@@ -479,6 +481,9 @@ func doConferenceUpdate(args cmdargs) int {
 	}
 	if user_id != "" {
 		m["user_id"] = user_id
+	}
+	if video_url != "" {
+		m["video_url"] = video_url
 	}
 	r := model.UpdateConferenceRequest{}
 	if err := r.Populate(m); err != nil {

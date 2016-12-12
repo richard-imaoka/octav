@@ -4066,6 +4066,10 @@ func init() {
 					"user_id",
 					jsval.Reference(M).RefersTo("#/definitions/uuid"),
 				).
+				AddProp(
+					"video_url",
+					jsval.Reference(M).RefersTo("#/definitions/url"),
+				).
 				PatternPropertiesString(
 					"cfp_lead_text#[a-z]+",
 					jsval.Reference(M).RefersTo("#/definitions/string_i18n"),

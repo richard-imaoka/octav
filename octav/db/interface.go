@@ -42,6 +42,7 @@ type Conference struct {
 	EID                   string // ID that is visible to the outside
 	CoverURL              sql.NullString
 	RedirectURL           sql.NullString
+	VideoURL              sql.NullString
 	SeriesID              string // ConferenceSeries ID
 	Slug                  string
 	Status                string

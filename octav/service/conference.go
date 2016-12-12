@@ -65,6 +65,11 @@ func (v *ConferenceSvc) populateRowForUpdate(vdb *db.Conference, payload *model.
 		vdb.RedirectURL.String = payload.RedirectURL.String
 	}
 
+	if payload.VideoURL.Valid() {
+		vdb.VideoURL.Valid = true
+		vdb.VideoURL.String = payload.VideoURL.String
+	}
+
 	if payload.Slug.Valid() {
 		vdb.Slug = payload.Slug.String
 	}

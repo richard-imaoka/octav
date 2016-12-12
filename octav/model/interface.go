@@ -47,6 +47,7 @@ type Conference struct {
 	ContactInformation        string              `json:"contact_information,omitempty" l10n:"true"`
 	CoverURL                  string              `json:"cover_url"`
 	RedirectURL               string              `json:"redirect_url"`
+	VideoURL                  string              `json:"video_url"`
 	SeriesID                  string              `json:"series_id,omitempty"`
 	Series                    *ConferenceSeries   `json:"series,omitempty" decorate:"true"`
 	SubTitle                  string              `json:"sub_title" l10n:"true"`
@@ -343,6 +344,7 @@ type UpdateConferenceRequest struct {
 	ContactInformation        jsval.MaybeString `json:"contact_information" l10n:"true"`
 	MultipartForm             *multipart.Form   `json:"-"`
 	RedirectURL               jsval.MaybeString `json:"redirect_url,omitempty"`
+	VideoURL                  jsval.MaybeString `json:"video_url,omitempty"`
 	SeriesID                  jsval.MaybeString `json:"series_id,omitempty"`
 	Slug                      jsval.MaybeString `json:"slug,omitempty"`
 	SubTitle                  jsval.MaybeString `json:"sub_title,omitempty" l10n:"true"`
