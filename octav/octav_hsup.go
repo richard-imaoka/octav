@@ -11,34 +11,33 @@ import (
 	"strings"
 	"sync"
 
-	"context"
 	"github.com/builderscon/octav/octav/model"
 	"github.com/builderscon/octav/octav/validator"
 	"github.com/gorilla/mux"
 	"github.com/lestrrat/go-pdebug"
 	"github.com/lestrrat/go-urlenc"
-	"io/ioutil"
+	"golang.org/x/net/context"
 )
 
 const MaxPostSize = (1 << 20) * 2
 
 var _ = json.Decoder{}
 var _ = urlenc.Marshal
-var bbPool = sync.Pool{
-	New: allocBytesBuffer,
+var transportJSONBufferPool = sync.Pool{
+	New: allocTransportJSONBuffer,
 }
 
-func allocBytesBuffer() interface{} {
+func allocTransportJSONBuffer() interface{} {
 	return &bytes.Buffer{}
 }
 
-func getBytesBuffer() *bytes.Buffer {
-	return bbPool.Get().(*bytes.Buffer)
+func getTransportJSONBuffer() *bytes.Buffer {
+	return transportJSONBufferPool.Get().(*bytes.Buffer)
 }
 
-func releaseBytesBuffer(buf *bytes.Buffer) {
+func releaseTransportJSONBuffer(buf *bytes.Buffer) {
 	buf.Reset()
-	bbPool.Put(buf)
+	transportJSONBufferPool.Put(buf)
 }
 
 type Server struct {
@@ -102,7 +101,6 @@ type HandlerWithContext func(context.Context, http.ResponseWriter, *http.Request
 func httpWithContext(h HandlerWithContext) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h(NewContext(r), w, r)
-		defer io.Copy(ioutil.Discard, r.Body)
 	})
 }
 
@@ -120,18 +118,13 @@ func httpAddConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddConferenceAdminRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -139,6 +132,7 @@ func httpAddConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *http.
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -155,7 +149,7 @@ func httpAddConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *http.
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddConferenceAdmin(ctx, w, r, &payload)
+	doAddConferenceAdmin(ctx, w, r, payload)
 }
 
 func httpAddConferenceCredential(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -165,18 +159,13 @@ func httpAddConferenceCredential(ctx context.Context, w http.ResponseWriter, r *
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddConferenceCredentialRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -184,6 +173,7 @@ func httpAddConferenceCredential(ctx context.Context, w http.ResponseWriter, r *
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -200,7 +190,7 @@ func httpAddConferenceCredential(ctx context.Context, w http.ResponseWriter, r *
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddConferenceCredential(ctx, w, r, &payload)
+	doAddConferenceCredential(ctx, w, r, payload)
 }
 
 func httpAddConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -210,18 +200,13 @@ func httpAddConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateConferenceDateRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -229,6 +214,7 @@ func httpAddConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.R
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -245,7 +231,7 @@ func httpAddConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.R
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddConferenceDate(ctx, w, r, &payload)
+	doAddConferenceDate(ctx, w, r, payload)
 }
 
 func httpAddConferenceSeriesAdmin(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -255,18 +241,13 @@ func httpAddConferenceSeriesAdmin(ctx context.Context, w http.ResponseWriter, r 
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddConferenceSeriesAdminRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -274,6 +255,7 @@ func httpAddConferenceSeriesAdmin(ctx context.Context, w http.ResponseWriter, r 
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -290,7 +272,7 @@ func httpAddConferenceSeriesAdmin(ctx context.Context, w http.ResponseWriter, r 
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddConferenceSeriesAdmin(ctx, w, r, &payload)
+	doAddConferenceSeriesAdmin(ctx, w, r, payload)
 }
 
 func httpAddConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -300,18 +282,13 @@ func httpAddConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddConferenceStaffRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -319,6 +296,7 @@ func httpAddConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http.
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -335,7 +313,7 @@ func httpAddConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http.
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddConferenceStaff(ctx, w, r, &payload)
+	doAddConferenceStaff(ctx, w, r, payload)
 }
 
 func httpAddConferenceVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -345,18 +323,13 @@ func httpAddConferenceVenue(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddConferenceVenueRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -364,6 +337,7 @@ func httpAddConferenceVenue(ctx context.Context, w http.ResponseWriter, r *http.
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -380,7 +354,7 @@ func httpAddConferenceVenue(ctx context.Context, w http.ResponseWriter, r *http.
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddConferenceVenue(ctx, w, r, &payload)
+	doAddConferenceVenue(ctx, w, r, payload)
 }
 
 func httpAddFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -390,18 +364,13 @@ func httpAddFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddFeaturedSpeakerRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -409,6 +378,7 @@ func httpAddFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *http.
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -425,7 +395,7 @@ func httpAddFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *http.
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddFeaturedSpeaker(ctx, w, r, &payload)
+	doAddFeaturedSpeaker(ctx, w, r, payload)
 }
 
 func httpAddSessionType(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -435,18 +405,13 @@ func httpAddSessionType(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddSessionTypeRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -454,6 +419,7 @@ func httpAddSessionType(ctx context.Context, w http.ResponseWriter, r *http.Requ
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -470,7 +436,7 @@ func httpAddSessionType(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddSessionType(ctx, w, r, &payload)
+	doAddSessionType(ctx, w, r, payload)
 }
 
 func httpAddSponsor(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -480,18 +446,13 @@ func httpAddSponsor(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.AddSponsorRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -499,6 +460,7 @@ func httpAddSponsor(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -515,7 +477,7 @@ func httpAddSponsor(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doAddSponsor(ctx, w, r, &payload)
+	doAddSponsor(ctx, w, r, payload)
 }
 
 func httpConfirmTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -525,18 +487,13 @@ func httpConfirmTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ConfirmTemporaryEmailRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -544,6 +501,7 @@ func httpConfirmTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *ht
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -560,7 +518,7 @@ func httpConfirmTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doConfirmTemporaryEmail(ctx, w, r, &payload)
+	doConfirmTemporaryEmail(ctx, w, r, payload)
 }
 
 func httpCreateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -570,18 +528,13 @@ func httpCreateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateBlogEntryRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -589,6 +542,7 @@ func httpCreateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -605,7 +559,7 @@ func httpCreateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateBlogEntry(ctx, w, r, &payload)
+	doCreateBlogEntry(ctx, w, r, payload)
 }
 
 func httpCreateConference(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -615,18 +569,13 @@ func httpCreateConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateConferenceRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -634,6 +583,7 @@ func httpCreateConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -650,7 +600,7 @@ func httpCreateConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateConference(ctx, w, r, &payload)
+	doCreateConference(ctx, w, r, payload)
 }
 
 func httpCreateConferenceSeries(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -660,18 +610,13 @@ func httpCreateConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateConferenceSeriesRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -679,6 +624,7 @@ func httpCreateConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -695,7 +641,7 @@ func httpCreateConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateConferenceSeries(ctx, w, r, &payload)
+	doCreateConferenceSeries(ctx, w, r, payload)
 }
 
 func httpCreateQuestion(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -705,20 +651,12 @@ func httpCreateQuestion(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateQuestionRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -727,7 +665,7 @@ func httpCreateQuestion(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateQuestion(ctx, w, r, &payload)
+	doCreateQuestion(ctx, w, r, payload)
 }
 
 func httpCreateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -737,18 +675,13 @@ func httpCreateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateRoomRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -756,6 +689,7 @@ func httpCreateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -772,7 +706,7 @@ func httpCreateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateRoom(ctx, w, r, &payload)
+	doCreateRoom(ctx, w, r, payload)
 }
 
 func httpCreateSession(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -782,18 +716,13 @@ func httpCreateSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateSessionRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -801,6 +730,7 @@ func httpCreateSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -817,7 +747,7 @@ func httpCreateSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateSession(ctx, w, r, &payload)
+	doCreateSession(ctx, w, r, payload)
 }
 
 func httpCreateSessionSurveyResponse(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -827,20 +757,12 @@ func httpCreateSessionSurveyResponse(ctx context.Context, w http.ResponseWriter,
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateSessionSurveyResponseRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -849,7 +771,7 @@ func httpCreateSessionSurveyResponse(ctx context.Context, w http.ResponseWriter,
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateSessionSurveyResponse(ctx, w, r, &payload)
+	doCreateSessionSurveyResponse(ctx, w, r, payload)
 }
 
 func httpCreateTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -859,18 +781,13 @@ func httpCreateTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateTemporaryEmailRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -878,6 +795,7 @@ func httpCreateTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *htt
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -894,7 +812,7 @@ func httpCreateTemporaryEmail(ctx context.Context, w http.ResponseWriter, r *htt
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateTemporaryEmail(ctx, w, r, &payload)
+	doCreateTemporaryEmail(ctx, w, r, payload)
 }
 
 func httpCreateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -904,18 +822,13 @@ func httpCreateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateTrackRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -923,6 +836,7 @@ func httpCreateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -939,7 +853,7 @@ func httpCreateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateTrack(ctx, w, r, &payload)
+	doCreateTrack(ctx, w, r, payload)
 }
 
 func httpCreateUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -949,18 +863,13 @@ func httpCreateUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateUserRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -968,6 +877,7 @@ func httpCreateUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -984,7 +894,7 @@ func httpCreateUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateUser(ctx, w, r, &payload)
+	doCreateUser(ctx, w, r, payload)
 }
 
 func httpCreateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -994,18 +904,13 @@ func httpCreateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.CreateVenueRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1013,6 +918,7 @@ func httpCreateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1029,7 +935,7 @@ func httpCreateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doCreateVenue(ctx, w, r, &payload)
+	doCreateVenue(ctx, w, r, payload)
 }
 
 func httpDeleteBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1039,18 +945,13 @@ func httpDeleteBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteBlogEntryRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1058,6 +959,7 @@ func httpDeleteBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1074,7 +976,7 @@ func httpDeleteBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteBlogEntry(ctx, w, r, &payload)
+	doDeleteBlogEntry(ctx, w, r, payload)
 }
 
 func httpDeleteConference(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1084,18 +986,13 @@ func httpDeleteConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteConferenceRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1103,6 +1000,7 @@ func httpDeleteConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1119,7 +1017,7 @@ func httpDeleteConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteConference(ctx, w, r, &payload)
+	doDeleteConference(ctx, w, r, payload)
 }
 
 func httpDeleteConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1129,18 +1027,13 @@ func httpDeleteConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteConferenceAdminRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1148,6 +1041,7 @@ func httpDeleteConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *ht
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1164,7 +1058,7 @@ func httpDeleteConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteConferenceAdmin(ctx, w, r, &payload)
+	doDeleteConferenceAdmin(ctx, w, r, payload)
 }
 
 func httpDeleteConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1174,18 +1068,13 @@ func httpDeleteConferenceDate(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteConferenceDateRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1193,6 +1082,7 @@ func httpDeleteConferenceDate(ctx context.Context, w http.ResponseWriter, r *htt
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1209,7 +1099,7 @@ func httpDeleteConferenceDate(ctx context.Context, w http.ResponseWriter, r *htt
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteConferenceDate(ctx, w, r, &payload)
+	doDeleteConferenceDate(ctx, w, r, payload)
 }
 
 func httpDeleteConferenceSeries(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1219,18 +1109,13 @@ func httpDeleteConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteConferenceSeriesRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1238,6 +1123,7 @@ func httpDeleteConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1254,7 +1140,7 @@ func httpDeleteConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteConferenceSeries(ctx, w, r, &payload)
+	doDeleteConferenceSeries(ctx, w, r, payload)
 }
 
 func httpDeleteConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1264,18 +1150,13 @@ func httpDeleteConferenceStaff(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteConferenceStaffRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1283,6 +1164,7 @@ func httpDeleteConferenceStaff(ctx context.Context, w http.ResponseWriter, r *ht
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1299,7 +1181,7 @@ func httpDeleteConferenceStaff(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteConferenceStaff(ctx, w, r, &payload)
+	doDeleteConferenceStaff(ctx, w, r, payload)
 }
 
 func httpDeleteConferenceVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1309,18 +1191,13 @@ func httpDeleteConferenceVenue(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteConferenceVenueRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1328,6 +1205,7 @@ func httpDeleteConferenceVenue(ctx context.Context, w http.ResponseWriter, r *ht
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1344,7 +1222,7 @@ func httpDeleteConferenceVenue(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteConferenceVenue(ctx, w, r, &payload)
+	doDeleteConferenceVenue(ctx, w, r, payload)
 }
 
 func httpDeleteFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1354,18 +1232,13 @@ func httpDeleteFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteFeaturedSpeakerRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1373,6 +1246,7 @@ func httpDeleteFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1389,7 +1263,7 @@ func httpDeleteFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteFeaturedSpeaker(ctx, w, r, &payload)
+	doDeleteFeaturedSpeaker(ctx, w, r, payload)
 }
 
 func httpDeleteQuestion(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1399,18 +1273,13 @@ func httpDeleteQuestion(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteQuestionRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1418,6 +1287,7 @@ func httpDeleteQuestion(ctx context.Context, w http.ResponseWriter, r *http.Requ
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1434,7 +1304,7 @@ func httpDeleteQuestion(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteQuestion(ctx, w, r, &payload)
+	doDeleteQuestion(ctx, w, r, payload)
 }
 
 func httpDeleteRoom(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1444,18 +1314,13 @@ func httpDeleteRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteRoomRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1463,6 +1328,7 @@ func httpDeleteRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1479,7 +1345,7 @@ func httpDeleteRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteRoom(ctx, w, r, &payload)
+	doDeleteRoom(ctx, w, r, payload)
 }
 
 func httpDeleteSession(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1489,18 +1355,13 @@ func httpDeleteSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteSessionRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1508,6 +1369,7 @@ func httpDeleteSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1524,7 +1386,7 @@ func httpDeleteSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteSession(ctx, w, r, &payload)
+	doDeleteSession(ctx, w, r, payload)
 }
 
 func httpDeleteSessionType(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1534,18 +1396,13 @@ func httpDeleteSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteSessionTypeRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1553,6 +1410,7 @@ func httpDeleteSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1569,7 +1427,7 @@ func httpDeleteSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteSessionType(ctx, w, r, &payload)
+	doDeleteSessionType(ctx, w, r, payload)
 }
 
 func httpDeleteSponsor(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1579,18 +1437,13 @@ func httpDeleteSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteSponsorRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1598,6 +1451,7 @@ func httpDeleteSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1614,7 +1468,7 @@ func httpDeleteSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteSponsor(ctx, w, r, &payload)
+	doDeleteSponsor(ctx, w, r, payload)
 }
 
 func httpDeleteTrack(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1624,18 +1478,13 @@ func httpDeleteTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteTrackRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1643,6 +1492,7 @@ func httpDeleteTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1659,7 +1509,7 @@ func httpDeleteTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteTrack(ctx, w, r, &payload)
+	doDeleteTrack(ctx, w, r, payload)
 }
 
 func httpDeleteUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1669,18 +1519,13 @@ func httpDeleteUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteUserRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1688,6 +1533,7 @@ func httpDeleteUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1704,7 +1550,7 @@ func httpDeleteUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteUser(ctx, w, r, &payload)
+	doDeleteUser(ctx, w, r, payload)
 }
 
 func httpDeleteVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1714,18 +1560,13 @@ func httpDeleteVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.DeleteVenueRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -1733,6 +1574,7 @@ func httpDeleteVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -1749,7 +1591,7 @@ func httpDeleteVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doDeleteVenue(ctx, w, r, &payload)
+	doDeleteVenue(ctx, w, r, payload)
 }
 
 func httpGetConferenceSchedule(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1759,20 +1601,12 @@ func httpGetConferenceSchedule(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.GetConferenceScheduleRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -1781,7 +1615,7 @@ func httpGetConferenceSchedule(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doGetConferenceSchedule(ctx, w, r, &payload)
+	doGetConferenceSchedule(ctx, w, r, payload)
 }
 
 func httpHealthCheck(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1791,12 +1625,7 @@ func httpHealthCheck(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
@@ -1810,20 +1639,12 @@ func httpListBlogEntries(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListBlogEntriesRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -1832,7 +1653,7 @@ func httpListBlogEntries(ctx context.Context, w http.ResponseWriter, r *http.Req
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListBlogEntries(ctx, w, r, &payload)
+	doListBlogEntries(ctx, w, r, payload)
 }
 
 func httpListConference(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1842,20 +1663,12 @@ func httpListConference(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListConferenceRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -1864,7 +1677,7 @@ func httpListConference(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListConference(ctx, w, r, &payload)
+	doListConference(ctx, w, r, payload)
 }
 
 func httpListConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1874,20 +1687,12 @@ func httpListConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *http
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListConferenceAdminRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -1896,7 +1701,7 @@ func httpListConferenceAdmin(ctx context.Context, w http.ResponseWriter, r *http
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListConferenceAdmin(ctx, w, r, &payload)
+	doListConferenceAdmin(ctx, w, r, payload)
 }
 
 func httpListConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1906,20 +1711,12 @@ func httpListConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListConferenceDateRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -1928,7 +1725,7 @@ func httpListConferenceDate(ctx context.Context, w http.ResponseWriter, r *http.
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListConferenceDate(ctx, w, r, &payload)
+	doListConferenceDate(ctx, w, r, payload)
 }
 
 func httpListConferenceSeries(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1938,20 +1735,12 @@ func httpListConferenceSeries(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListConferenceSeriesRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -1960,7 +1749,7 @@ func httpListConferenceSeries(ctx context.Context, w http.ResponseWriter, r *htt
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListConferenceSeries(ctx, w, r, &payload)
+	doListConferenceSeries(ctx, w, r, payload)
 }
 
 func httpListConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1970,20 +1759,12 @@ func httpListConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListConferenceStaffRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -1992,7 +1773,7 @@ func httpListConferenceStaff(ctx context.Context, w http.ResponseWriter, r *http
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListConferenceStaff(ctx, w, r, &payload)
+	doListConferenceStaff(ctx, w, r, payload)
 }
 
 func httpListConferencesByOrganizer(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2002,20 +1783,12 @@ func httpListConferencesByOrganizer(ctx context.Context, w http.ResponseWriter, 
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListConferencesByOrganizerRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2024,7 +1797,7 @@ func httpListConferencesByOrganizer(ctx context.Context, w http.ResponseWriter, 
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListConferencesByOrganizer(ctx, w, r, &payload)
+	doListConferencesByOrganizer(ctx, w, r, payload)
 }
 
 func httpListFeaturedSpeakers(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2034,20 +1807,12 @@ func httpListFeaturedSpeakers(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListFeaturedSpeakersRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2056,7 +1821,7 @@ func httpListFeaturedSpeakers(ctx context.Context, w http.ResponseWriter, r *htt
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListFeaturedSpeakers(ctx, w, r, &payload)
+	doListFeaturedSpeakers(ctx, w, r, payload)
 }
 
 func httpListQuestion(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2066,20 +1831,12 @@ func httpListQuestion(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListQuestionRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2088,7 +1845,7 @@ func httpListQuestion(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListQuestion(ctx, w, r, &payload)
+	doListQuestion(ctx, w, r, payload)
 }
 
 func httpListRoom(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2098,20 +1855,12 @@ func httpListRoom(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListRoomRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2120,7 +1869,7 @@ func httpListRoom(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListRoom(ctx, w, r, &payload)
+	doListRoom(ctx, w, r, payload)
 }
 
 func httpListSessionTypesByConference(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2130,20 +1879,12 @@ func httpListSessionTypesByConference(ctx context.Context, w http.ResponseWriter
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListSessionTypesByConferenceRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2152,7 +1893,7 @@ func httpListSessionTypesByConference(ctx context.Context, w http.ResponseWriter
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListSessionTypesByConference(ctx, w, r, &payload)
+	doListSessionTypesByConference(ctx, w, r, payload)
 }
 
 func httpListSessions(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2162,20 +1903,12 @@ func httpListSessions(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListSessionsRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2184,7 +1917,7 @@ func httpListSessions(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListSessions(ctx, w, r, &payload)
+	doListSessions(ctx, w, r, payload)
 }
 
 func httpListSponsors(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2194,20 +1927,12 @@ func httpListSponsors(ctx context.Context, w http.ResponseWriter, r *http.Reques
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListSponsorsRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2216,7 +1941,7 @@ func httpListSponsors(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListSponsors(ctx, w, r, &payload)
+	doListSponsors(ctx, w, r, payload)
 }
 
 func httpListUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2226,20 +1951,12 @@ func httpListUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListUserRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2248,7 +1965,7 @@ func httpListUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListUser(ctx, w, r, &payload)
+	doListUser(ctx, w, r, payload)
 }
 
 func httpListVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2258,20 +1975,12 @@ func httpListVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.ListVenueRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2280,7 +1989,7 @@ func httpListVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doListVenue(ctx, w, r, &payload)
+	doListVenue(ctx, w, r, payload)
 }
 
 func httpLookupBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2290,20 +1999,12 @@ func httpLookupBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupBlogEntryRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2312,7 +2013,7 @@ func httpLookupBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupBlogEntry(ctx, w, r, &payload)
+	doLookupBlogEntry(ctx, w, r, payload)
 }
 
 func httpLookupConference(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2322,20 +2023,12 @@ func httpLookupConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupConferenceRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2344,7 +2037,7 @@ func httpLookupConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupConference(ctx, w, r, &payload)
+	doLookupConference(ctx, w, r, payload)
 }
 
 func httpLookupConferenceBySlug(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2354,20 +2047,12 @@ func httpLookupConferenceBySlug(ctx context.Context, w http.ResponseWriter, r *h
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupConferenceBySlugRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2376,7 +2061,7 @@ func httpLookupConferenceBySlug(ctx context.Context, w http.ResponseWriter, r *h
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupConferenceBySlug(ctx, w, r, &payload)
+	doLookupConferenceBySlug(ctx, w, r, payload)
 }
 
 func httpLookupConferenceSeries(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2386,20 +2071,12 @@ func httpLookupConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupConferenceSeriesRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2408,7 +2085,7 @@ func httpLookupConferenceSeries(ctx context.Context, w http.ResponseWriter, r *h
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupConferenceSeries(ctx, w, r, &payload)
+	doLookupConferenceSeries(ctx, w, r, payload)
 }
 
 func httpLookupFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2418,20 +2095,12 @@ func httpLookupFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupFeaturedSpeakerRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2440,7 +2109,7 @@ func httpLookupFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupFeaturedSpeaker(ctx, w, r, &payload)
+	doLookupFeaturedSpeaker(ctx, w, r, payload)
 }
 
 func httpLookupRoom(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2450,20 +2119,12 @@ func httpLookupRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupRoomRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2472,7 +2133,7 @@ func httpLookupRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupRoom(ctx, w, r, &payload)
+	doLookupRoom(ctx, w, r, payload)
 }
 
 func httpLookupSession(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2482,20 +2143,12 @@ func httpLookupSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupSessionRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2504,7 +2157,7 @@ func httpLookupSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupSession(ctx, w, r, &payload)
+	doLookupSession(ctx, w, r, payload)
 }
 
 func httpLookupSessionType(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2514,20 +2167,12 @@ func httpLookupSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupSessionTypeRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2536,7 +2181,7 @@ func httpLookupSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupSessionType(ctx, w, r, &payload)
+	doLookupSessionType(ctx, w, r, payload)
 }
 
 func httpLookupSponsor(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2546,20 +2191,12 @@ func httpLookupSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupSponsorRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2568,7 +2205,7 @@ func httpLookupSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupSponsor(ctx, w, r, &payload)
+	doLookupSponsor(ctx, w, r, payload)
 }
 
 func httpLookupTrack(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2578,20 +2215,12 @@ func httpLookupTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupTrackRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2600,7 +2229,7 @@ func httpLookupTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupTrack(ctx, w, r, &payload)
+	doLookupTrack(ctx, w, r, payload)
 }
 
 func httpLookupUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2610,20 +2239,12 @@ func httpLookupUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupUserRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2632,7 +2253,7 @@ func httpLookupUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupUser(ctx, w, r, &payload)
+	doLookupUser(ctx, w, r, payload)
 }
 
 func httpLookupUserByAuthUserID(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2642,20 +2263,12 @@ func httpLookupUserByAuthUserID(ctx context.Context, w http.ResponseWriter, r *h
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupUserByAuthUserIDRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2664,7 +2277,7 @@ func httpLookupUserByAuthUserID(ctx context.Context, w http.ResponseWriter, r *h
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupUserByAuthUserID(ctx, w, r, &payload)
+	doLookupUserByAuthUserID(ctx, w, r, payload)
 }
 
 func httpLookupVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2674,20 +2287,12 @@ func httpLookupVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `get` {
 		w.Header().Set("Allow", "get")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'get'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected get`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.LookupVenueRequest
-	qbuf := getBytesBuffer()
-	defer releaseBytesBuffer(qbuf)
-	qbuf.WriteString(r.URL.RawQuery)
-	if err := urlenc.Unmarshal(qbuf.Bytes(), &payload); err != nil {
+	if err := urlenc.Unmarshal([]byte(r.URL.RawQuery), &payload); err != nil {
 		httpError(w, `Failed to parse url query string`, http.StatusInternalServerError, err)
 		return
 	}
@@ -2696,7 +2301,7 @@ func httpLookupVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doLookupVenue(ctx, w, r, &payload)
+	doLookupVenue(ctx, w, r, payload)
 }
 
 func httpSendAllSelectionResultNotification(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2706,18 +2311,13 @@ func httpSendAllSelectionResultNotification(ctx context.Context, w http.Response
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.SendAllSelectionResultNotificationRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -2725,6 +2325,7 @@ func httpSendAllSelectionResultNotification(ctx context.Context, w http.Response
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -2741,7 +2342,7 @@ func httpSendAllSelectionResultNotification(ctx context.Context, w http.Response
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doSendAllSelectionResultNotification(ctx, w, r, &payload)
+	doSendAllSelectionResultNotification(ctx, w, r, payload)
 }
 
 func httpSendSelectionResultNotification(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2751,18 +2352,13 @@ func httpSendSelectionResultNotification(ctx context.Context, w http.ResponseWri
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.SendSelectionResultNotificationRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -2770,6 +2366,7 @@ func httpSendSelectionResultNotification(ctx context.Context, w http.ResponseWri
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -2786,7 +2383,7 @@ func httpSendSelectionResultNotification(ctx context.Context, w http.ResponseWri
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doSendSelectionResultNotification(ctx, w, r, &payload)
+	doSendSelectionResultNotification(ctx, w, r, payload)
 }
 
 func httpTweetAsConference(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2796,18 +2393,13 @@ func httpTweetAsConference(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.TweetAsConferenceRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -2815,6 +2407,7 @@ func httpTweetAsConference(ctx context.Context, w http.ResponseWriter, r *http.R
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -2831,7 +2424,7 @@ func httpTweetAsConference(ctx context.Context, w http.ResponseWriter, r *http.R
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doTweetAsConference(ctx, w, r, &payload)
+	doTweetAsConference(ctx, w, r, payload)
 }
 
 func httpUpdateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2841,18 +2434,13 @@ func httpUpdateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateBlogEntryRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -2860,6 +2448,7 @@ func httpUpdateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -2876,7 +2465,7 @@ func httpUpdateBlogEntry(ctx context.Context, w http.ResponseWriter, r *http.Req
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateBlogEntry(ctx, w, r, &payload)
+	doUpdateBlogEntry(ctx, w, r, payload)
 }
 
 func httpUpdateConference(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2886,18 +2475,13 @@ func httpUpdateConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateConferenceRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -2905,6 +2489,7 @@ func httpUpdateConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	case strings.HasPrefix(ct, "multipart/"):
 		if err := r.ParseMultipartForm(MaxPostSize); err != nil {
 			httpError(w, `Invalid multipart data`, http.StatusInternalServerError, err)
@@ -2934,7 +2519,7 @@ func httpUpdateConference(ctx context.Context, w http.ResponseWriter, r *http.Re
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateConference(ctx, w, r, &payload)
+	doUpdateConference(ctx, w, r, payload)
 }
 
 func httpUpdateFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2944,18 +2529,13 @@ func httpUpdateFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateFeaturedSpeakerRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -2963,6 +2543,7 @@ func httpUpdateFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -2979,7 +2560,7 @@ func httpUpdateFeaturedSpeaker(ctx context.Context, w http.ResponseWriter, r *ht
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateFeaturedSpeaker(ctx, w, r, &payload)
+	doUpdateFeaturedSpeaker(ctx, w, r, payload)
 }
 
 func httpUpdateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -2989,18 +2570,13 @@ func httpUpdateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateRoomRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3008,6 +2584,7 @@ func httpUpdateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -3024,7 +2601,7 @@ func httpUpdateRoom(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateRoom(ctx, w, r, &payload)
+	doUpdateRoom(ctx, w, r, payload)
 }
 
 func httpUpdateSession(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -3034,18 +2611,13 @@ func httpUpdateSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateSessionRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3053,6 +2625,7 @@ func httpUpdateSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -3069,7 +2642,7 @@ func httpUpdateSession(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateSession(ctx, w, r, &payload)
+	doUpdateSession(ctx, w, r, payload)
 }
 
 func httpUpdateSessionType(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -3079,18 +2652,13 @@ func httpUpdateSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateSessionTypeRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3098,6 +2666,7 @@ func httpUpdateSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -3114,7 +2683,7 @@ func httpUpdateSessionType(ctx context.Context, w http.ResponseWriter, r *http.R
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateSessionType(ctx, w, r, &payload)
+	doUpdateSessionType(ctx, w, r, payload)
 }
 
 func httpUpdateSponsor(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -3124,18 +2693,13 @@ func httpUpdateSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateSponsorRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3143,6 +2707,7 @@ func httpUpdateSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	case strings.HasPrefix(ct, "multipart/"):
 		if err := r.ParseMultipartForm(MaxPostSize); err != nil {
 			httpError(w, `Invalid multipart data`, http.StatusInternalServerError, err)
@@ -3172,7 +2737,7 @@ func httpUpdateSponsor(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateSponsor(ctx, w, r, &payload)
+	doUpdateSponsor(ctx, w, r, payload)
 }
 
 func httpUpdateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -3182,18 +2747,13 @@ func httpUpdateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateTrackRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3201,6 +2761,7 @@ func httpUpdateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -3217,7 +2778,7 @@ func httpUpdateTrack(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateTrack(ctx, w, r, &payload)
+	doUpdateTrack(ctx, w, r, payload)
 }
 
 func httpUpdateUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -3227,18 +2788,13 @@ func httpUpdateUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateUserRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3246,6 +2802,7 @@ func httpUpdateUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -3262,7 +2819,7 @@ func httpUpdateUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateUser(ctx, w, r, &payload)
+	doUpdateUser(ctx, w, r, payload)
 }
 
 func httpUpdateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -3272,18 +2829,13 @@ func httpUpdateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.UpdateVenueRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3291,6 +2843,7 @@ func httpUpdateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -3307,7 +2860,7 @@ func httpUpdateVenue(ctx context.Context, w http.ResponseWriter, r *http.Request
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doUpdateVenue(ctx, w, r, &payload)
+	doUpdateVenue(ctx, w, r, payload)
 }
 
 func httpVerifyUser(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -3317,18 +2870,13 @@ func httpVerifyUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	}
 	if strings.ToLower(r.Method) != `post` {
 		w.Header().Set("Allow", "post")
-		msgbuf := getBytesBuffer()
-		defer releaseBytesBuffer(msgbuf)
-		msgbuf.WriteString(`Method was `)
-		msgbuf.WriteString(r.Method)
-		msgbuf.WriteString(`, expected 'post'`)
-		httpError(w, msgbuf.String(), http.StatusNotFound, nil)
+		httpError(w, `Method was `+r.Method+`, expected post`, http.StatusNotFound, nil)
 		return
 	}
 
 	var payload model.VerifyUserRequest
-	jsonbuf := getBytesBuffer()
-	defer releaseBytesBuffer(jsonbuf)
+	jsonbuf := getTransportJSONBuffer()
+	defer releaseTransportJSONBuffer(jsonbuf)
 
 	switch ct := r.Header.Get("Content-Type"); {
 	case ct == "application/json":
@@ -3336,6 +2884,7 @@ func httpVerifyUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 			httpError(w, `Failed to read request body`, http.StatusInternalServerError, err)
 			return
 		}
+		defer r.Body.Close()
 	default:
 		httpError(w, `Invalid content-type`, http.StatusInternalServerError, nil)
 		return
@@ -3352,7 +2901,7 @@ func httpVerifyUser(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		httpError(w, `Invalid input (validation failed)`, http.StatusInternalServerError, err)
 		return
 	}
-	doVerifyUser(ctx, w, r, &payload)
+	doVerifyUser(ctx, w, r, payload)
 }
 
 func (s *Server) SetupRoutes() {
